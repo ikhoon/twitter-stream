@@ -1,14 +1,15 @@
 package controllers
 
 import com.google.inject.Inject
-import core.Env
+import core.{Env, TwitterStreamer}
 import play.api.Logger
 import play.api.libs.iteratee.{Concurrent, Enumeratee, Enumerator, Iteratee}
-import play.api.libs.json.JsObject
+import play.api.libs.json.{JsObject, JsValue}
 import play.api.libs.oauth.{ConsumerKey, OAuthCalculator, RequestToken}
-import play.api.libs.ws.WSClient
-import play.api.mvc.{Action, Controller}
+import play.api.libs.ws.{WS, WSClient}
+import play.api.mvc.{Action, Controller, WebSocket}
 import play.extras.iteratees.{Encoding, JsonIteratees}
+import play.api.Play.current
 
 import scala.concurrent.Future
 import play.api.libs.concurrent.Execution.Implicits._
@@ -16,15 +17,18 @@ import play.api.libs.concurrent.Execution.Implicits._
 /**
  * Created by Liam.M(엄익훈) on 8/23/16.
  */
-class Application @Inject()(env: Env, ws: WSClient)
-   extends Controller {
+object Application extends Controller {
 
   val logger = Logger.logger
 
-  def index = Action {
+  def index = Action { implicit request =>
     Ok(views.html.index("Your application is ready"))
   }
 
+  def tweets = WebSocket.acceptWithActor[String, JsValue] {
+    request => out => TwitterStreamer.props(out)
+  }
+  /*
   def tweets = Action.async {
     credentials().fold(
       Future.successful(InternalServerError("Twitter credentials missing"))
@@ -44,7 +48,7 @@ class Application @Inject()(env: Env, ws: WSClient)
         // attache Enumerator[JsObject] to Iteratee[JsObject, Unit] for consuming JsObject
         jsonStream |>>> loggingIteratee
 
-        ws
+        WS
           .url("https://stream.twitter.com/1.1/statuses/filter.json")
           .sign(OAuthCalculator(consumerKey, requestToken))
           .withQueryString("track" -> "reactive")
@@ -57,12 +61,7 @@ class Application @Inject()(env: Env, ws: WSClient)
           }
     }
   }
+  */
 
   /// private
-  def credentials(): Option[(ConsumerKey, RequestToken)] = for {
-      apiKey <- env.as[String]("twitter.apiKey")
-      apiSecret <- env.as[String]("twitter.apiSecret")
-      token <- env.as[String]("twitter.token")
-      tokenSecret <- env.as[String]("twitter.tokenSecret")
-    } yield (ConsumerKey(apiKey, apiSecret), RequestToken(token, tokenSecret))
 }
